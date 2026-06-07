@@ -15,6 +15,19 @@ class UserRepository {
     return user;
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!user) return null;
+
+    return user;
+  }
+
   async findBySlackUserId(slackUserId: string): Promise<User | null> {
     const { data: user, error } = await supabase
       .from("users")
