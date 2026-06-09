@@ -8,6 +8,8 @@ const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 const googleSheetsClientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
 const googleSheetsPrivateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
 const googleSheetsSpreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+const slackBotToken = process.env.SLACK_BOT_TOKEN;
+const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 
 if (!PORT) {
   throw new Error("PORT is not defined");
@@ -37,6 +39,14 @@ if (!googleSheetsSpreadsheetId) {
   throw new Error("GOOGLE_SHEETS_SPREADSHEET_ID is not defined");
 }
 
+if (!slackBotToken) {
+  throw new Error("SLACK_BOT_TOKEN is not defined");
+}
+
+if (!slackSigningSecret) {
+  throw new Error("SLACK_SIGNING_SECRET is not defined");
+}
+
 export const envConfig = {
   port: PORT,
   supabaseUrl,
@@ -45,4 +55,6 @@ export const envConfig = {
   googleSheetsClientEmail,
   googleSheetsPrivateKey,
   googleSheetsSpreadsheetId,
+  slackBotToken,
+  slackSigningSecret,
 };
