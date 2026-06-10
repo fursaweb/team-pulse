@@ -38,4 +38,4 @@ type UpdateCheckinData = {
   reminder_scheduled_at?: string;
 };
 
-export { Checkin, CreateCheckinData, UpdateCheckinData };
+export { Checkin, CreateCheckinData, UpdateCheckinData, CHECKIN_STATUS };

@@ -28,6 +28,17 @@ class TeamRepository {
     return team;
   }
 
+  async findActive(): Promise<Team[]> {
+    const { data: teams, error } = await supabase
+      .from("teams")
+      .select("*")
+      .eq("active", true);
+
+    if (error) throw new Error(error.message);
+
+    return teams ?? [];
+  }
+
   async create(data: CreateTeamData): Promise<Team> {
     const { data: team, error } = await supabase
       .from("teams")
@@ -40,6 +51,7 @@ class TeamRepository {
 
     return team;
   }
+
   async update(id: string, data: UpdateTeamData): Promise<Team> {
     const { data: team, error } = await supabase
       .from("teams")
@@ -53,6 +65,7 @@ class TeamRepository {
 
     return team;
   }
+
   async deactivate(id: string): Promise<Team> {
     return await this.update(id, { active: false });
   }
