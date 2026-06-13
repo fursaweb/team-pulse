@@ -8,7 +8,7 @@ enum GLOBAL_ROLE {
   USER = "USER",
 }
 
-enum STATUS {
+enum USER_STATUS {
   ACTIVE = "ACTIVE",
   PENDING = "PENDING",
   DISABLED = "DISABLED",
@@ -21,7 +21,7 @@ type User = {
   slack_user_id: string | null;
   language: LANG;
   global_role: GLOBAL_ROLE;
-  status: STATUS;
+  status: USER_STATUS;
   created_at: string;
   updated_at: string;
 };
@@ -32,7 +32,7 @@ type CreateUserData = {
   slack_user_id?: string | null;
   language?: LANG;
   global_role?: GLOBAL_ROLE;
-  status?: STATUS;
+  status?: USER_STATUS;
 };
 
 type UpdateUserData = {
@@ -41,7 +41,7 @@ type UpdateUserData = {
   slack_user_id?: string | null;
   language?: LANG;
   global_role?: GLOBAL_ROLE;
-  status?: STATUS;
+  status?: USER_STATUS;
 };
 
-export { LANG, GLOBAL_ROLE, STATUS, User, CreateUserData, UpdateUserData };
+export { LANG, GLOBAL_ROLE, USER_STATUS, User, CreateUserData, UpdateUserData };

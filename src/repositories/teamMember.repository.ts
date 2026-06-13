@@ -1,6 +1,7 @@
 import { supabase } from "../infrastructure/database/supabase.client";
 import {
   TeamMember,
+  TeamMemberWithUser,
   CreateTeamMemberData,
   UpdateTeamMemberData,
 } from "../types/teamMember.type";
@@ -46,15 +47,33 @@ class TeamMemberRepository {
     return teamMember;
   }
 
-  async findActiveByTeamId(teamId: string): Promise<TeamMember[]> {
-    const { data: teamMember, error } = await supabase
+  async findActiveByTeamId(teamId: string): Promise<TeamMemberWithUser[]> {
+    const { data: teamMembers, error } = await supabase
       .from("team_members")
-      .select("*")
+      .select(
+        `
+          id,
+          team_id,
+          user_id,
+          role,
+          active,
+          created_at,
+          updated_at,
+          user:users (
+            id,
+            name,
+            email,
+            slack_user_id,
+            language,
+            status
+          )
+        `,
+      )
       .match({ team_id: teamId, active: true });
 
     if (error) throw new Error(error.message);
 
-    return teamMember;
+    return teamMembers as unknown as TeamMemberWithUser[];
   }
 
   async create(data: CreateTeamMemberData): Promise<TeamMember> {

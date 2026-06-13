@@ -4,9 +4,21 @@ import {
   Checkin,
   CreateCheckinData,
   UpdateCheckinData,
+  CHECKIN_STATUS,
 } from "../types/checkin.types";
 
 class CheckinRepository {
+  async findCreated(): Promise<Checkin[]> {
+    const { data: checkins, error } = await supabase
+      .from("checkins")
+      .select("*")
+      .eq("status", CHECKIN_STATUS.CREATED);
+
+    if (error) throw new Error(error.message);
+
+    return checkins;
+  }
+
   async findById(id: string): Promise<Checkin | null> {
     const { data: checkin, error } = await supabase
       .from("checkins")

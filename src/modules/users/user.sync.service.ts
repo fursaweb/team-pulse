@@ -1,7 +1,5 @@
-import { googleSheetsClient } from "../../infrastructure/google/googleSheets.client";
-import { envConfig } from "../../config/env";
 import { TEAM_MEMBER_ROLE } from "../../types/teamMember.type";
-import { LANG, STATUS } from "../../types/user.types";
+import { LANG, USER_STATUS } from "../../types/user.types";
 import { SyncErrorData } from "../../infrastructure/google/googleShets.types";
 import { userSyncRowSchema, UserSyncRow } from "./users.validator";
 import { teamRepository } from "../../repositories/team.repository";
@@ -70,7 +68,7 @@ class UserSyncService {
 
   private async syncUser(row: UserSyncRow) {
     const existingUser = await userRepository.findByEmail(row.email);
-    const userStatus = row.active ? STATUS.ACTIVE : STATUS.DISABLED;
+    const userStatus = row.active ? USER_STATUS.ACTIVE : USER_STATUS.DISABLED;
 
     if (!existingUser) {
       const newUser = await userRepository.create({
