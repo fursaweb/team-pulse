@@ -2,7 +2,7 @@ import { notificationLogRepository } from "./../../repositories/notificationLog.
 import { DateTime } from "luxon";
 import { teamRepository } from "../../repositories/team.repository";
 import { checkinRepository } from "../../repositories/checkin.repository";
-import { CHECKIN_STATUS } from "../../types/checkin.types";
+import { Checkin, CHECKIN_STATUS } from "../../types/checkin.types";
 import { teamMemberRepository } from "../../repositories/teamMember.repository";
 import { USER_STATUS } from "../../types/user.types";
 import {
@@ -11,6 +11,12 @@ import {
   NOTIFICATION_STATUS,
 } from "../../types/notificationLog.types";
 import { slackService } from "../../infrastructure/slack/slack.service";
+import { Team } from "../../types/team.types";
+import { googleSheetsService } from "../../infrastructure/google/googleSheets.service";
+import {
+  DAILY_STATUS,
+  DailyStatusRow,
+} from "../../infrastructure/google/googleShets.types";
 
 type CreateDailyCheckinsResult = {
   totalTeams: number;
@@ -20,6 +26,37 @@ type CreateDailyCheckinsResult = {
 };
 
 class CheckinsService {
+  private async createDailyReportRows(
+    checkin: Checkin,
+    team: Team,
+  ): Promise<DailyStatusRow[]> {
+    const members = await teamMemberRepository.findActiveByTeamId(team.id);
+
+    const rows: DailyStatusRow[] = [];
+
+    for (const member of members) {
+      const user = member.user;
+
+      if (!user) continue;
+      if (user.status !== USER_STATUS.ACTIVE) continue;
+
+      rows.push([
+        checkin.date,
+        team.name,
+        user.name,
+        user.email,
+        user.language,
+        DAILY_STATUS.NO_RESPONSE,
+        "",
+        false,
+        "",
+        checkin.id,
+        user.id,
+      ]);
+    }
+    return rows;
+  }
+
   async createDailyCheckins(): Promise<CreateDailyCheckinsResult> {
     const teams = await teamRepository.findActive();
 
@@ -68,13 +105,19 @@ class CheckinsService {
           throw new Error(`Invalid check-in schedule for team: ${team.name}`);
         }
 
-        await checkinRepository.create({
+        const checkin = await checkinRepository.create({
           team_id: team.id,
           date: localDate,
           scheduled_at: scheduledAtIso,
           reminder_scheduled_at: reminderScheduledAtIso,
           status: CHECKIN_STATUS.CREATED,
         });
+
+        const rows = await this.createDailyReportRows(checkin, team);
+
+        if (rows.length > 0) {
+          await googleSheetsService.appendDailyStatusRows(rows);
+        }
 
         created++;
       } catch (error) {

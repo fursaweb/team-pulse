@@ -19,4 +19,4 @@ type CreateCheckinResponseData = {
   responded_at?: string;
 };
 
-export { CheckinResponse, CreateCheckinResponseData };
+export { CheckinResponse, CreateCheckinResponseData, CHECKIN_RESPONSE_STATUS };

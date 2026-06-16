@@ -1,6 +1,6 @@
 import { googleSheetsClient } from "../../infrastructure/google/googleSheets.client";
 import { envConfig } from "../../config/env";
-import { SyncErrorData } from "./googleShets.types";
+import { SyncErrorData, DailyStatusRow } from "./googleShets.types";
 
 const readUsersSheet = async () => {
   const response = await googleSheetsClient.spreadsheets.values.get({
@@ -35,4 +35,19 @@ const appendSyncError = async (errorData: SyncErrorData) => {
   });
 };
 
-export const googleSheetsService = { appendSyncError, readUsersSheet };
+const appendDailyStatusRows = async (rows: DailyStatusRow[]) => {
+  await googleSheetsClient.spreadsheets.values.append({
+    spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+    range: "Daily Status!A:K",
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: rows,
+    },
+  });
+};
+
+export const googleSheetsService = {
+  appendSyncError,
+  readUsersSheet,
+  appendDailyStatusRows,
+};
