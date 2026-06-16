@@ -30,7 +30,6 @@ type CreateCheckinData = {
 };
 
 type UpdateCheckinData = {
-  id: string;
   status?: CHECKIN_STATUS;
   sent_at?: string;
   reminder_sent_at?: string;

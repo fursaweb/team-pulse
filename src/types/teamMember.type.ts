@@ -1,3 +1,5 @@
+import { User } from "./user.types";
+
 enum TEAM_MEMBER_ROLE {
   COORDINATOR = "COORDINATOR",
   MEMBER = "MEMBER",
@@ -11,6 +13,13 @@ type TeamMember = {
   active: boolean;
   created_at: string;
   updated_at: string;
+};
+
+type TeamMemberWithUser = TeamMember & {
+  user: Pick<
+    User,
+    "id" | "name" | "email" | "slack_user_id" | "language" | "status"
+  >;
 };
 
 type CreateTeamMemberData = {
@@ -28,6 +37,7 @@ type UpdateTeamMemberData = {
 export {
   TEAM_MEMBER_ROLE,
   TeamMember,
+  TeamMemberWithUser,
   CreateTeamMemberData,
   UpdateTeamMemberData,
 };

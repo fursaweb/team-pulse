@@ -34,8 +34,14 @@ type CreateNotificationLogData = {
   channel?: NOTIFICATION_CHANNEL;
   slack_channel_id?: string;
   slack_message_ts?: string;
-  sent_at?: string;
+  sent_at?: string | null;
   error_message?: string;
 };
 
-export { NOTIFICATION_TYPE, NotificationLog, CreateNotificationLogData };
+export {
+  NOTIFICATION_TYPE,
+  NOTIFICATION_CHANNEL,
+  NOTIFICATION_STATUS,
+  NotificationLog,
+  CreateNotificationLogData,
+};

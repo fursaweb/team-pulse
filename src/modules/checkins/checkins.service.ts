@@ -1,7 +1,22 @@
+import { notificationLogRepository } from "./../../repositories/notificationLog.repository";
 import { DateTime } from "luxon";
 import { teamRepository } from "../../repositories/team.repository";
 import { checkinRepository } from "../../repositories/checkin.repository";
-import { CHECKIN_STATUS } from "../../types/checkin.types";
+import { Checkin, CHECKIN_STATUS } from "../../types/checkin.types";
+import { teamMemberRepository } from "../../repositories/teamMember.repository";
+import { USER_STATUS } from "../../types/user.types";
+import {
+  NOTIFICATION_TYPE,
+  NOTIFICATION_CHANNEL,
+  NOTIFICATION_STATUS,
+} from "../../types/notificationLog.types";
+import { slackService } from "../../infrastructure/slack/slack.service";
+import { Team } from "../../types/team.types";
+import { googleSheetsService } from "../../infrastructure/google/googleSheets.service";
+import {
+  DAILY_STATUS,
+  DailyStatusRow,
+} from "../../infrastructure/google/googleShets.types";
 
 type CreateDailyCheckinsResult = {
   totalTeams: number;
@@ -11,6 +26,37 @@ type CreateDailyCheckinsResult = {
 };
 
 class CheckinsService {
+  private async createDailyReportRows(
+    checkin: Checkin,
+    team: Team,
+  ): Promise<DailyStatusRow[]> {
+    const members = await teamMemberRepository.findActiveByTeamId(team.id);
+
+    const rows: DailyStatusRow[] = [];
+
+    for (const member of members) {
+      const user = member.user;
+
+      if (!user) continue;
+      if (user.status !== USER_STATUS.ACTIVE) continue;
+
+      rows.push([
+        checkin.date,
+        team.name,
+        user.name,
+        user.email,
+        user.language,
+        DAILY_STATUS.NO_RESPONSE,
+        "",
+        false,
+        "",
+        checkin.id,
+        user.id,
+      ]);
+    }
+    return rows;
+  }
+
   async createDailyCheckins(): Promise<CreateDailyCheckinsResult> {
     const teams = await teamRepository.findActive();
 
@@ -59,13 +105,19 @@ class CheckinsService {
           throw new Error(`Invalid check-in schedule for team: ${team.name}`);
         }
 
-        await checkinRepository.create({
+        const checkin = await checkinRepository.create({
           team_id: team.id,
           date: localDate,
           scheduled_at: scheduledAtIso,
           reminder_scheduled_at: reminderScheduledAtIso,
           status: CHECKIN_STATUS.CREATED,
         });
+
+        const rows = await this.createDailyReportRows(checkin, team);
+
+        if (rows.length > 0) {
+          await googleSheetsService.appendDailyStatusRows(rows);
+        }
 
         created++;
       } catch (error) {
@@ -78,14 +130,103 @@ class CheckinsService {
       }
     }
 
-    console.log({ totalTeams: teams.length, created, skipped, failed });
-
     return {
       totalTeams: teams.length,
       created,
       skipped,
       failed,
     };
+  }
+
+  async dispatchCreatedCheckins() {
+    const checkins = await checkinRepository.findCreated();
+
+    for (const checkin of checkins) {
+      const members = await teamMemberRepository.findActiveByTeamId(
+        checkin.team_id,
+      );
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const member of members) {
+        const user = member.user;
+
+        if (!user) {
+          continue;
+        }
+
+        if (user.status !== USER_STATUS.ACTIVE) {
+          continue;
+        }
+
+        if (!user.slack_user_id) {
+          continue;
+        }
+
+        const existingLog =
+          await notificationLogRepository.findByCheckinAndUserAndType(
+            checkin.id,
+            user.id,
+            NOTIFICATION_TYPE.CHECK_IN,
+          );
+
+        if (existingLog) {
+          continue;
+        }
+
+        try {
+          // Send Checkin message
+          const slackMessage = await slackService.sendCheckinMessage({
+            slackUserId: user.slack_user_id,
+            checkinId: checkin.id,
+            language: user.language,
+          });
+
+          sentCount++;
+
+          await notificationLogRepository.create({
+            checkin_id: checkin.id,
+            user_id: user.id,
+            channel: NOTIFICATION_CHANNEL.SLACK,
+            type: NOTIFICATION_TYPE.CHECK_IN,
+            status: NOTIFICATION_STATUS.SENT,
+            slack_channel_id: slackMessage.channelId,
+            slack_message_ts: slackMessage.messageTs,
+            sent_at: new Date().toISOString(),
+            error_message: undefined,
+          });
+        } catch (error) {
+          failedCount++;
+
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown Slack error";
+
+          await notificationLogRepository.create({
+            checkin_id: checkin.id,
+            user_id: user.id,
+            channel: NOTIFICATION_CHANNEL.SLACK,
+            type: NOTIFICATION_TYPE.CHECK_IN,
+            status: NOTIFICATION_STATUS.FAILED,
+            slack_channel_id: undefined,
+            slack_message_ts: undefined,
+            sent_at: undefined,
+            error_message: errorMessage,
+          });
+        }
+      }
+
+      if (sentCount > 0) {
+        await checkinRepository.update(checkin.id, {
+          status: CHECKIN_STATUS.SENT,
+          sent_at: new Date().toISOString(),
+        });
+      } else {
+        await checkinRepository.update(checkin.id, {
+          status: CHECKIN_STATUS.FAILED,
+        });
+      }
+    }
   }
 }
 
