@@ -1,9 +1,11 @@
-import { notificationLogRepository } from "./../../repositories/notificationLog.repository";
 import { DateTime } from "luxon";
 import { teamRepository } from "../../repositories/team.repository";
 import { checkinRepository } from "../../repositories/checkin.repository";
-import { Checkin, CHECKIN_STATUS } from "../../types/checkin.types";
 import { teamMemberRepository } from "../../repositories/teamMember.repository";
+import { checkinResponseRepository } from "./../../repositories/checkinResponse.repository";
+import { notificationLogRepository } from "./../../repositories/notificationLog.repository";
+import { userRepository } from "../../repositories/user.repository";
+import { Checkin, CHECKIN_STATUS } from "../../types/checkin.types";
 import { USER_STATUS } from "../../types/user.types";
 import {
   NOTIFICATION_TYPE,
@@ -226,6 +228,40 @@ class CheckinsService {
           status: CHECKIN_STATUS.FAILED,
         });
       }
+    }
+  }
+
+  async processSafeResponse(
+    slackId: string,
+    checkinId: string,
+    channelId: string,
+    messageTs: string,
+  ) {
+    const user = await userRepository.findBySlackUserId(slackId);
+    const checkin = await checkinRepository.findById(checkinId);
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (user.status !== USER_STATUS.ACTIVE) {
+      throw new Error("User is not active");
+    }
+
+    if (!checkin) {
+      throw new Error("Checkin not found");
+    }
+
+    const checkinResponse =
+      await checkinResponseRepository.findByCheckinAndUser(checkinId, user.id);
+
+    if (!checkinResponse) {
+      const checkinResponsePayload = {
+        checkin_id: checkinId,
+        user_id: user.id,
+      };
+
+      await checkinResponseRepository.create(checkinResponsePayload);
     }
   }
 }
