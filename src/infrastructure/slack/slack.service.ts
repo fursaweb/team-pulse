@@ -46,6 +46,36 @@ class SlackService {
     };
   }
 
+  private buildSafeConfirmedMessage() {
+    return {
+      text: "Відповідь зафіксовано",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "✅ Дякуємо, вашу відповідь зафіксовано.",
+          },
+        },
+      ],
+    };
+  }
+
+  private buildAlreadyRespondedMessage() {
+    return {
+      text: "Відповідь уже була зафіксована",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "✅ Ваша відповідь уже була зафіксована.",
+          },
+        },
+      ],
+    };
+  }
+
   private async postMessage(channelId: string, text: string, blocks: any[]) {
     const response = await slackApp.client.chat.postMessage({
       channel: channelId,
@@ -63,6 +93,41 @@ class SlackService {
       channelId,
       messageTs,
     };
+  }
+
+  private async updateMessage(
+    channelId: string,
+    ts: string,
+    text: string,
+    blocks: any[],
+  ) {
+    const response = await slackApp.client.chat.update({
+      channel: channelId,
+      ts,
+      text,
+      blocks,
+    });
+
+    const messageTs = response.ts;
+
+    if (!messageTs) {
+      throw new Error("Failed to update Slack message");
+    }
+
+    return {
+      channelId,
+      messageTs,
+    };
+  }
+
+  async updateSafeConfirmedMessage(channelId: string, messageTs: string) {
+    const message = this.buildSafeConfirmedMessage();
+    this.updateMessage(channelId, messageTs, message.text, message.blocks);
+  }
+
+  async updateAlreadyRespondedMessage(channelId: string, messageTs: string) {
+    const message = this.buildAlreadyRespondedMessage();
+    this.updateMessage(channelId, messageTs, message.text, message.blocks);
   }
 
   async sendCheckinMessage(data: SendCheckinMessageData) {

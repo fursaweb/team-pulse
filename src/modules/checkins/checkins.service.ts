@@ -262,6 +262,9 @@ class CheckinsService {
       };
 
       await checkinResponseRepository.create(checkinResponsePayload);
+      await slackService.updateSafeConfirmedMessage(channelId, messageTs);
+    } else {
+      await slackService.updateAlreadyRespondedMessage(channelId, messageTs);
     }
   }
 }
