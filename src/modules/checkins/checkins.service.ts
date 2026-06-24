@@ -19,6 +19,7 @@ import {
   DAILY_STATUS,
   DailyStatusRow,
 } from "../../infrastructure/google/googleShets.types";
+import { TeamMemberWithUser } from "../../types/teamMember.type";
 
 type CreateDailyCheckinsResult = {
   totalTeams: number;
@@ -263,10 +264,125 @@ class CheckinsService {
 
       await checkinResponseRepository.create(checkinResponsePayload);
       await googleSheetsService.updateDailyStatusResponse(checkinId, user.id);
-      await slackService.updateSafeConfirmedMessage(channelId, messageTs);
+      await slackService.updateSafeConfirmedMessage(
+        channelId,
+        messageTs,
+        user.language,
+      );
     } else {
-      await slackService.updateAlreadyRespondedMessage(channelId, messageTs);
+      await slackService.updateAlreadyRespondedMessage(
+        channelId,
+        messageTs,
+        user.language,
+      );
     }
+  }
+
+  async processDueReminders() {
+    const checkins = await checkinRepository.findReadyForReminder();
+
+    for (const checkin of checkins) {
+      const nonResponders = await this.findNonResponders(checkin);
+
+      let sentCount = 0;
+      let failedCount = 0;
+
+      for (const nonResponder of nonResponders) {
+        if (!nonResponder.user.slack_user_id) {
+          continue;
+        }
+
+        const payload = {
+          slackUserId: nonResponder.user.slack_user_id,
+          checkinId: checkin.id,
+          language: nonResponder.user.language,
+        };
+
+        try {
+          const existingLog =
+            await notificationLogRepository.findByCheckinAndUserAndType(
+              checkin.id,
+              nonResponder.user.id,
+              NOTIFICATION_TYPE.REMINDER,
+            );
+
+          if (existingLog) {
+            continue;
+          }
+
+          const slackMessage = await slackService.sendReminderMessage(payload);
+
+          await notificationLogRepository.create({
+            checkin_id: checkin.id,
+            user_id: nonResponder.user.id,
+            channel: NOTIFICATION_CHANNEL.SLACK,
+            type: NOTIFICATION_TYPE.REMINDER,
+            status: NOTIFICATION_STATUS.SENT,
+            slack_channel_id: slackMessage.channelId,
+            slack_message_ts: slackMessage.messageTs,
+            sent_at: new Date().toISOString(),
+            error_message: undefined,
+          });
+
+          await googleSheetsService.updateDailyStatusReminder(
+            checkin.id,
+            nonResponder.user.id,
+          );
+
+          sentCount++;
+        } catch (error) {
+          failedCount++;
+
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown DB error";
+
+          await notificationLogRepository.create({
+            checkin_id: checkin.id,
+            user_id: nonResponder.user.id,
+            channel: NOTIFICATION_CHANNEL.SLACK,
+            type: NOTIFICATION_TYPE.REMINDER,
+            status: NOTIFICATION_STATUS.FAILED,
+            slack_channel_id: undefined,
+            slack_message_ts: undefined,
+            sent_at: undefined,
+            error_message: errorMessage,
+          });
+        }
+      }
+
+      if (sentCount > 0) {
+        await checkinRepository.update(checkin.id, {
+          reminder_sent_at: new Date().toISOString(),
+          status: CHECKIN_STATUS.REMINDER_SENT,
+        });
+      }
+    }
+
+    {
+      return { total: checkins.length, checkins };
+    }
+  }
+
+  async findNonResponders(checkin: Checkin): Promise<TeamMemberWithUser[]> {
+    const members = await teamMemberRepository.findActiveByTeamId(
+      checkin.team_id,
+    );
+
+    const checkinResponses = await checkinResponseRepository.findByCheckinId(
+      checkin.id,
+    );
+
+    const respondedUserIds = checkinResponses.map(
+      (checkinResponse) => checkinResponse.user_id,
+    );
+
+    return members.filter(
+      (member) =>
+        member.active &&
+        member.user.status === USER_STATUS.ACTIVE &&
+        member.user.slack_user_id &&
+        !respondedUserIds.includes(member.user_id),
+    );
   }
 }
 

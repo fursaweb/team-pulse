@@ -1,5 +1,7 @@
 import { SendCheckinMessageData } from "../slack/slack.types";
 import { slackApp } from "./slack.client";
+import { t } from "../../shared/i18n";
+import { LANG } from "../../types/user.types";
 
 class SlackService {
   private async openDirectMessage(slackId: string): Promise<string> {
@@ -16,15 +18,15 @@ class SlackService {
     return channelId;
   }
 
-  private buildCheckinMessage(checkinId: string) {
+  private buildCheckinMessage(checkinId: string, lang: LANG) {
     return {
-      text: "Підтвердіть, що ви в безпеці",
+      text: t(lang, "checkin.dailyMessage"),
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "Добрий ранок!\nПідтвердіть, що ви в безпеці.",
+            text: t(lang, "checkin.dailyMessage"),
           },
         },
         {
@@ -34,7 +36,7 @@ class SlackService {
               type: "button",
               text: {
                 type: "plain_text",
-                text: "Я в безпеці",
+                text: t(lang, "checkin.safeButton"),
               },
               style: "primary",
               action_id: "CHECKIN_SAFE",
@@ -46,30 +48,60 @@ class SlackService {
     };
   }
 
-  private buildSafeConfirmedMessage() {
+  private buildReminderMessage(checkinId: string, lang: LANG) {
     return {
-      text: "Відповідь зафіксовано",
+      text: t(lang, "checkin.reminderMessage"),
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "✅ Дякуємо, вашу відповідь зафіксовано.",
+            text: t(lang, "checkin.reminderMessage"),
+          },
+        },
+        {
+          type: "actions",
+          elements: [
+            {
+              type: "button",
+              text: {
+                type: "plain_text",
+                text: t(lang, "checkin.safeButton"),
+              },
+              style: "primary",
+              action_id: "CHECKIN_SAFE",
+              value: checkinId,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  private buildSafeConfirmedMessage(lang: LANG) {
+    return {
+      text: t(lang, "checkin.confirmationMessage"),
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: t(lang, "checkin.confirmationMessage"),
           },
         },
       ],
     };
   }
 
-  private buildAlreadyRespondedMessage() {
+  private buildAlreadyRespondedMessage(lang: LANG) {
     return {
-      text: "Відповідь уже була зафіксована",
+      text: t(lang, "checkin.duplicateResponse"),
       blocks: [
         {
           type: "section",
           text: {
             type: "mrkdwn",
-            text: "✅ Ваша відповідь уже була зафіксована.",
+            text: t(lang, "checkin.duplicateResponse"),
           },
         },
       ],
@@ -120,19 +152,33 @@ class SlackService {
     };
   }
 
-  async updateSafeConfirmedMessage(channelId: string, messageTs: string) {
-    const message = this.buildSafeConfirmedMessage();
+  async updateSafeConfirmedMessage(
+    channelId: string,
+    messageTs: string,
+    lang: LANG,
+  ) {
+    const message = this.buildSafeConfirmedMessage(lang);
     this.updateMessage(channelId, messageTs, message.text, message.blocks);
   }
 
-  async updateAlreadyRespondedMessage(channelId: string, messageTs: string) {
-    const message = this.buildAlreadyRespondedMessage();
+  async updateAlreadyRespondedMessage(
+    channelId: string,
+    messageTs: string,
+    lang: LANG,
+  ) {
+    const message = this.buildAlreadyRespondedMessage(lang);
     this.updateMessage(channelId, messageTs, message.text, message.blocks);
   }
 
   async sendCheckinMessage(data: SendCheckinMessageData) {
     const channelId = await this.openDirectMessage(data.slackUserId);
-    const message = this.buildCheckinMessage(data.checkinId);
+    const message = this.buildCheckinMessage(data.checkinId, data.language);
+    return this.postMessage(channelId, message.text, message.blocks);
+  }
+
+  async sendReminderMessage(data: SendCheckinMessageData) {
+    const channelId = await this.openDirectMessage(data.slackUserId);
+    const message = this.buildReminderMessage(data.checkinId, data.language);
     return this.postMessage(channelId, message.text, message.blocks);
   }
 }

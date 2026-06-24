@@ -77,9 +77,43 @@ const updateDailyStatusResponse = async (checkinId: string, userId: string) => {
   });
 };
 
+const updateDailyStatusReminder = async (
+  checkinId: string,
+  userId: string,
+): Promise<void> => {
+  const response = await googleSheetsClient.spreadsheets.values.get({
+    spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+    range: "Daily Status!A:K",
+  });
+
+  const rows = response.data.values ?? [];
+
+  const rowIndex = rows.findIndex(
+    (row) => row[9] === checkinId && row[10] === userId,
+  );
+
+  if (rowIndex === -1) {
+    throw new Error(
+      `Daily Status row not found for checkin ${checkinId} and user ${userId}`,
+    );
+  }
+
+  const rowNumber = rowIndex + 1;
+
+  await googleSheetsClient.spreadsheets.values.update({
+    spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+    range: `Daily Status!H${rowNumber}:I${rowNumber}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [[true, new Date().toISOString()]],
+    },
+  });
+};
+
 export const googleSheetsService = {
   appendSyncError,
   readUsersSheet,
   appendDailyStatusRows,
   updateDailyStatusResponse,
+  updateDailyStatusReminder,
 };
