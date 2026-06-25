@@ -264,6 +264,7 @@ class CheckinsService {
 
       await checkinResponseRepository.create(checkinResponsePayload);
       await googleSheetsService.updateDailyStatusResponse(checkinId, user.id);
+      await this.checkAndCompleteCheckin(checkin);
       await slackService.updateSafeConfirmedMessage(
         channelId,
         messageTs,
@@ -383,6 +384,35 @@ class CheckinsService {
         member.user.slack_user_id &&
         !respondedUserIds.includes(member.user_id),
     );
+  }
+
+  async checkAndCompleteCheckin(checkin: Checkin): Promise<void> {
+    if (
+      checkin.status === CHECKIN_STATUS.FAILED ||
+      checkin.status === CHECKIN_STATUS.COMPLETED
+    ) {
+      return;
+    }
+
+    const activeTeamMembers = await teamMemberRepository.findActiveByTeamId(
+      checkin.team_id,
+    );
+
+    const activeUsers = activeTeamMembers.filter(
+      (member) => member.user.status === USER_STATUS.ACTIVE,
+    );
+
+    if (activeUsers.length === 0) return;
+
+    const checkinResponses = await checkinResponseRepository.findByCheckinId(
+      checkin.id,
+    );
+
+    if (activeUsers.length === checkinResponses.length) {
+      await checkinRepository.update(checkin.id, {
+        status: CHECKIN_STATUS.COMPLETED,
+      });
+    }
   }
 }
 
