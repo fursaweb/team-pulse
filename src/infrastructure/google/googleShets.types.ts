@@ -11,7 +11,7 @@ type SyncErrorData = {
   row_number: number;
   email?: string;
   team_name?: string;
-  error_type: "VALIDATION_ERROR" | "SYNC_ERROR";
+  error_type: "VALIDATION_ERROR" | "SYNC_ERROR" | "SLACK_USER_NOT_FOUND";
   error_message: string;
   raw_data: string;
 };

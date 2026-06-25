@@ -6,6 +6,7 @@ import { teamRepository } from "../../repositories/team.repository";
 import { userRepository } from "../../repositories/user.repository";
 import { teamMemberRepository } from "../../repositories/teamMember.repository";
 import { googleSheetsService } from "../../infrastructure/google/googleSheets.service";
+import { slackService } from "../../infrastructure/slack/slack.service";
 
 class UserSyncService {
   private parseUserRow(row: string[]): Partial<UserSyncRow> {
@@ -66,7 +67,7 @@ class UserSyncService {
     return team;
   }
 
-  private async syncUser(row: UserSyncRow) {
+  private async syncUser(row: UserSyncRow, slackUserId: string | null) {
     const existingUser = await userRepository.findByEmail(row.email);
     const userStatus = row.active ? USER_STATUS.ACTIVE : USER_STATUS.DISABLED;
 
@@ -76,6 +77,7 @@ class UserSyncService {
         email: row.email,
         language: row.language,
         status: userStatus,
+        slack_user_id: slackUserId,
       });
       return newUser;
     }
@@ -156,8 +158,25 @@ class UserSyncService {
         // sync team
         const team = await this.syncTeam(validRow.team_name);
 
+        // get slack id
+        const slackUserId = await slackService.findUserByEmail(validRow.email);
+
+        if (!slackUserId) {
+          const syncErrorData: SyncErrorData = {
+            sheet_name: "Users",
+            row_number: rowNumber,
+            email: parsedRow.email ?? "",
+            team_name: parsedRow.team_name ?? "",
+            error_type: "SLACK_USER_NOT_FOUND",
+            error_message: `User with email ${parsedRow.email} not found`,
+            raw_data: JSON.stringify(row),
+          };
+
+          await googleSheetsService.appendSyncError(syncErrorData);
+        }
+
         // sync user
-        const user = await this.syncUser(validRow);
+        const user = await this.syncUser(validRow, slackUserId);
 
         // sync membership
         await this.syncMembership(team.id, user.id, validRow);

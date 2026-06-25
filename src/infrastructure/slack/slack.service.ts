@@ -152,6 +152,27 @@ class SlackService {
     };
   }
 
+  async findUserByEmail(email: string): Promise<string | null> {
+    try {
+      const result = await slackApp.client.users.lookupByEmail({
+        email,
+      });
+
+      return result.user?.id ?? null;
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "data" in error &&
+        (error as any).data?.error === "users_not_found"
+      ) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async updateSafeConfirmedMessage(
     channelId: string,
     messageTs: string,
