@@ -48,6 +48,22 @@ class CheckinRepository {
     return checkin;
   }
 
+  async findReadyForReminder(): Promise<Checkin[]> {
+    const now = new Date().toISOString();
+
+    const { data: checkins, error } = await supabase
+      .from("checkins")
+      .select("*")
+      .eq("status", CHECKIN_STATUS.SENT)
+      .is("reminder_sent_at", null)
+      .lte("reminder_scheduled_at", now)
+      .order("reminder_scheduled_at", { ascending: true });
+
+    if (error) throw new Error(error.message);
+
+    return checkins;
+  }
+
   async create(data: CreateCheckinData): Promise<Checkin> {
     const { data: checkin, error } = await supabase
       .from("checkins")
