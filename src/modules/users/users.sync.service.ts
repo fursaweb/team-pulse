@@ -8,7 +8,7 @@ import { teamMemberRepository } from "../../repositories/teamMember.repository";
 import { googleSheetsService } from "../../infrastructure/google/googleSheets.service";
 import { slackService } from "../../infrastructure/slack/slack.service";
 
-class UserSyncService {
+class UsersSyncService {
   private parseUserRow(row: string[]): Partial<UserSyncRow> {
     const [email, name, team_name, language, team_role, active] = row;
 
@@ -60,8 +60,7 @@ class UserSyncService {
     const team = await teamRepository.findByName(teamName);
 
     if (!team) {
-      const newTeam = await teamRepository.create({ name: teamName });
-      return newTeam;
+      throw new Error(`Team ${teamName} not found`);
     }
 
     return team;
@@ -211,4 +210,4 @@ class UserSyncService {
   }
 }
 
-export const userSyncService = new UserSyncService();
+export const usersSyncService = new UsersSyncService();
