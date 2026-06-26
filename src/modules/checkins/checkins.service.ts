@@ -144,13 +144,13 @@ class CheckinsService {
   async dispatchCreatedCheckins() {
     const checkins = await checkinRepository.findCreated();
 
+    let sentCount = 0;
+    let failedCount = 0;
+
     for (const checkin of checkins) {
       const members = await teamMemberRepository.findActiveByTeamId(
         checkin.team_id,
       );
-
-      let sentCount = 0;
-      let failedCount = 0;
 
       for (const member of members) {
         const user = member.user;
@@ -230,6 +230,10 @@ class CheckinsService {
         });
       }
     }
+    return {
+      sentCount,
+      failedCount,
+    };
   }
 
   async processSafeResponse(
@@ -281,12 +285,11 @@ class CheckinsService {
 
   async processDueReminders() {
     const checkins = await checkinRepository.findReadyForReminder();
+    let sentCount = 0;
+    let failedCount = 0;
 
     for (const checkin of checkins) {
       const nonResponders = await this.findNonResponders(checkin);
-
-      let sentCount = 0;
-      let failedCount = 0;
 
       for (const nonResponder of nonResponders) {
         if (!nonResponder.user.slack_user_id) {
@@ -360,7 +363,7 @@ class CheckinsService {
     }
 
     {
-      return { total: checkins.length, checkins };
+      return { total: checkins.length, checkins, sentCount, failedCount };
     }
   }
 
