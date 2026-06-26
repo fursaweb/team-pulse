@@ -10,6 +10,7 @@ const googleSheetsPrivateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
 const googleSheetsSpreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
+const adminToken = process.env.ADMIN_TOKEN;
 
 if (!PORT) {
   throw new Error("PORT is not defined");
@@ -47,6 +48,10 @@ if (!slackSigningSecret) {
   throw new Error("SLACK_SIGNING_SECRET is not defined");
 }
 
+if (!adminToken) {
+  throw new Error("ADMIN_TOKEN is not defined");
+}
+
 export const envConfig = {
   port: PORT,
   supabaseUrl,
@@ -57,4 +62,5 @@ export const envConfig = {
   googleSheetsSpreadsheetId,
   slackBotToken,
   slackSigningSecret,
+  adminToken,
 };

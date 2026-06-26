@@ -60,7 +60,7 @@ class CheckinsService {
     return rows;
   }
 
-  async createDailyCheckins(): Promise<CreateDailyCheckinsResult> {
+  async createDailyCheckins() {
     const teams = await teamRepository.findActive();
 
     let created = 0;
@@ -363,7 +363,7 @@ class CheckinsService {
     }
 
     {
-      return { total: checkins.length, checkins, sentCount, failedCount };
+      return { total: checkins.length, sentCount, failedCount };
     }
   }
 
