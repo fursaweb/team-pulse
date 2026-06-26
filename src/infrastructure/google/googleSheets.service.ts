@@ -6,7 +6,18 @@ import { CHECKIN_RESPONSE_STATUS } from "../../types/checkinResponse.types";
 const readUsersSheet = async () => {
   const response = await googleSheetsClient.spreadsheets.values.get({
     spreadsheetId: envConfig.googleSheetsSpreadsheetId,
-    range: "Users!A2:F10",
+    range: "Users!A2:F",
+  });
+
+  const rows = response.data.values ?? [];
+
+  return rows;
+};
+
+const readTeamsSheet = async () => {
+  const response = await googleSheetsClient.spreadsheets.values.get({
+    spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+    range: "Teams!A2:E",
   });
 
   const rows = response.data.values ?? [];
@@ -113,6 +124,7 @@ const updateDailyStatusReminder = async (
 export const googleSheetsService = {
   appendSyncError,
   readUsersSheet,
+  readTeamsSheet,
   appendDailyStatusRows,
   updateDailyStatusResponse,
   updateDailyStatusReminder,
