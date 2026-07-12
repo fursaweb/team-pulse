@@ -1,28 +1,43 @@
+import { logger } from "../infrastructure/logger/logger";
 import { checkinsService } from "../modules/checkins/checkins.service";
 
 export const dailyCheckinJob = async () => {
   try {
-    console.log("[DailyCheckinJob] Started: Create checkins");
+    logger.info("DailyCheckinJob", "Started. Create checkins");
 
     const createdCheckins = await checkinsService.createDailyCheckins();
 
-    console.log(
-      `[DailyCheckinJob] Finished: Created checkins Total:${createdCheckins.totalTeams} Created: ${createdCheckins.created}, Skipped: ${createdCheckins.skipped} Failed: ${createdCheckins.failed}`,
-    );
+    logger.info("DailyCheckinJob", "Finished. Created checkins", {
+      Total: createdCheckins.totalTeams,
+      Created: createdCheckins.created,
+      Skipped: createdCheckins.skipped,
+    });
 
-    console.log("[DailyCheckinJob] Started: Dispatch checkins");
+    logger.info("DailyCheckinJob", "Started. Dispatch checkins");
 
     const dispatchCheckins = await checkinsService.dispatchCreatedCheckins();
 
-    console.log(
-      `[DailyCheckinJob] Finished: Dispatched checkins Sent: ${dispatchCheckins.sentCount}, Failed: ${dispatchCheckins.failedCount}`,
-    );
+    logger.info("DailyCheckinJob", "Finished. Dispatch checkins", {
+      Sent: dispatchCheckins.sentCount,
+      Failed: dispatchCheckins.failedCount,
+    });
 
     return {
       createdCheckins,
       dispatchCheckins,
     };
   } catch (error) {
-    console.error("[DailyCheckinJob] Failed", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown DailyCheckinJob error";
+
+    logger.error("DailyCheckinJob", "Failed", {
+      error: errorMessage,
+    });
+
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    throw new Error("Unknown DailyCheckinJob error");
   }
 };

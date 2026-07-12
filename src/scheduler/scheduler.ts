@@ -1,20 +1,21 @@
 import cron from "node-cron";
+import { logger } from "../infrastructure/logger/logger";
 import { userSyncJob } from "../jobs/user-sync.job";
 import { dailyCheckinJob } from "../jobs/daily-checkin.job";
 import { reminderJob } from "../jobs/reminder.job";
 
 export const startScheduler = () => {
-  console.log("[Scheduler] Started");
+  logger.info("Scheduler", "Started");
 
   let isUserSyncRunning = false;
   let isDailyCheckinRunning = false;
   let isReminderRunning = false;
 
-  console.log("[Scheduler] UserSyncJob registered");
+  logger.info("Scheduler", "UserSyncJob registered");
 
   cron.schedule("*/15 * * * *", async () => {
     if (isUserSyncRunning) {
-      console.log("[Scheduler] UserSyncJob skipped");
+      logger.info("Scheduler", "UserSyncJob skipped");
       return;
     }
 
@@ -26,11 +27,11 @@ export const startScheduler = () => {
     }
   });
 
-  console.log("[Scheduler] DailyCheckinJob registered");
+  logger.info("Scheduler", "DailyCheckinJob registered");
 
   cron.schedule("*/5 * * * *", async () => {
     if (isDailyCheckinRunning) {
-      console.log("[Scheduler] DailyCheckinJob skipped");
+      logger.info("Scheduler", "DailyCheckinJob skipped");
       return;
     }
 
@@ -42,11 +43,11 @@ export const startScheduler = () => {
     }
   });
 
-  console.log("[Scheduler] ReminderJob registered");
+  logger.info("Scheduler", "ReminderJob registered");
 
   cron.schedule("*/5   * * * *", async () => {
     if (isReminderRunning) {
-      console.log("[Scheduler] ReminderJob skipped");
+      logger.info("Scheduler", "ReminderJob skipped");
       return;
     }
 
