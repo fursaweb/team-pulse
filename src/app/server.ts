@@ -11,7 +11,7 @@ app.use(express.json());
 app.use("/admin", adminRouter);
 
 registerSlackHandlers();
-//startScheduler();
+startScheduler();
 
 app.get("/health", async (req, res) => {
   return res.status(200).json({ status: "OK" });
