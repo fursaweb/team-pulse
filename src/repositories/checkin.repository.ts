@@ -8,11 +8,14 @@ import {
 } from "../types/checkin.types";
 
 class CheckinRepository {
-  async findCreated(): Promise<Checkin[]> {
+  async findReadyForDispatch(): Promise<Checkin[]> {
+    const now = new Date().toISOString();
+
     const { data: checkins, error } = await supabase
       .from("checkins")
       .select("*")
-      .eq("status", CHECKIN_STATUS.CREATED);
+      .eq("status", CHECKIN_STATUS.CREATED)
+      .lte("scheduled_at", now);
 
     if (error) throw new Error(error.message);
 

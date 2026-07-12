@@ -1,29 +1,45 @@
+import { logger } from "../infrastructure/logger/logger";
 import { teamsSyncService } from "../modules/teams/teams.sync.service";
 import { usersSyncService } from "../modules/users/users.sync.service";
 
 export const userSyncJob = async () => {
   try {
-    console.log("[UserSyncJob] Started: Sync Teams");
+    logger.info("UserSyncJob", "Started. Sync Teams");
 
     const teams = await teamsSyncService.syncTeams();
 
-    console.log(
-      `[UserSyncJob] Finished. Sync Teams Total:${teams.totalRows} Sent: ${teams.syncedRows}, Failed: ${teams.failedRows}`,
-    );
+    logger.info("UserSyncJob", "Finished. Sync Teams", {
+      Total: teams.totalRows,
+      Synced: teams.syncedRows,
+      Failed: teams.failedRows,
+    });
 
-    console.log("[UserSyncJob] Started: Sync Users");
+    logger.info("UserSyncJob", "Started. Sync Users");
 
     const users = await usersSyncService.syncUsers();
 
-    console.log(
-      `[UserSyncJob] Finished. Sync Users Total:${users.totalRows} Sent: ${users.syncedRows}, Failed: ${users.failedRows}`,
-    );
+    logger.info("UserSyncJob", "Finished. Sync Users", {
+      Total: users.totalRows,
+      Synced: users.syncedRows,
+      Failed: users.failedRows,
+    });
 
     return {
       teams,
       users,
     };
   } catch (error) {
-    console.error("[UserSyncJob] Failed", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown UserSyncJob error";
+
+    logger.error("UserSyncJob", "Failed", {
+      error: errorMessage,
+    });
+
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    throw new Error("Unknown UserSyncJob error");
   }
 };

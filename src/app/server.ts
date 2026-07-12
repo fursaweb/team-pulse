@@ -3,7 +3,6 @@ import { slackReceiver } from "../infrastructure/slack/slack.client";
 import { envConfig } from "../config/env";
 import { registerSlackHandlers } from "../infrastructure/slack/slack.handlers";
 import { startScheduler } from "../scheduler/scheduler";
-import { teamsSyncService } from "../modules/teams/teams.sync.service";
 import adminRouter from "./routes";
 
 const app = express();
@@ -12,7 +11,7 @@ app.use(express.json());
 app.use("/admin", adminRouter);
 
 registerSlackHandlers();
-startScheduler();
+//startScheduler();
 
 app.get("/health", async (req, res) => {
   return res.status(200).json({ status: "OK" });

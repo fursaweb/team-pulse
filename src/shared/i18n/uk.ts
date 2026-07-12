@@ -2,10 +2,10 @@ import { Translations } from "./types";
 
 export const uk: Translations = {
   "checkin.dailyMessage":
-    "Доброго ранку! \nБудь ласка, підтвердіть, що ви в безпеці.",
-  "checkin.safeButton": "Я в безпеці",
+    "Доброго ранку! \nБудь ласка, натисніть кнопку для щоденного чек-іну",
+  "checkin.safeButton": "Пройти чек-ін",
   "checkin.reminderMessage":
-    "Нагадування: будь ласка, підтвердіть, що ви в безпеці.",
+    "Нагадування: будь ласка, натисніть кнопку для щоденного чек-іну",
   "checkin.confirmationMessage": "Дякуємо, вашу відповідь збережено.",
   "checkin.duplicateResponse": "Ви вже відповіли на цю перевірку.",
   "checkin.userNotFound": "Не вдалося знайти ваш обліковий запис у системі.",

@@ -2,20 +2,42 @@ import { SendCheckinMessageData } from "../slack/slack.types";
 import { slackApp } from "./slack.client";
 import { t } from "../../shared/i18n";
 import { LANG } from "../../types/user.types";
+import { logger } from "../logger/logger";
 
 class SlackService {
   private async openDirectMessage(slackId: string): Promise<string> {
-    const response = await slackApp.client.conversations.open({
-      users: slackId,
-    });
+    try {
+      const response = await slackApp.client.conversations.open({
+        users: slackId,
+      });
 
-    const channelId = response.channel?.id;
+      const channelId = response.channel?.id;
 
-    if (!channelId) {
-      throw new Error("Failed to open Slack DM channel");
+      if (!channelId) {
+        throw new Error("Failed to open Slack DM channel");
+      }
+
+      logger.info("SlackService", "DM channel opened", {
+        slackUserId: slackId,
+        channelId,
+      });
+
+      return channelId;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown SlackService error";
+
+      logger.error("SlackService", "Failed", {
+        slackUserId: slackId,
+        error: errorMessage,
+      });
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(errorMessage);
     }
-
-    return channelId;
   }
 
   private buildCheckinMessage(checkinId: string, lang: LANG) {
@@ -109,22 +131,43 @@ class SlackService {
   }
 
   private async postMessage(channelId: string, text: string, blocks: any[]) {
-    const response = await slackApp.client.chat.postMessage({
-      channel: channelId,
-      text: text,
-      blocks: blocks,
-    });
+    try {
+      const response = await slackApp.client.chat.postMessage({
+        channel: channelId,
+        text: text,
+        blocks: blocks,
+      });
 
-    const messageTs = response.ts;
+      const messageTs = response.ts;
 
-    if (!messageTs) {
-      throw new Error("Failed to send Slack message");
+      if (!messageTs) {
+        throw new Error("Failed to send Slack message");
+      }
+
+      logger.info("SlackService", "Slack message sent", {
+        channelId,
+        messageTs,
+      });
+
+      return {
+        channelId,
+        messageTs,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown SlackService error";
+
+      logger.error("SlackService", "Failed to send Slack message", {
+        channelId,
+        error: errorMessage,
+      });
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(errorMessage);
     }
-
-    return {
-      channelId,
-      messageTs,
-    };
   }
 
   private async updateMessage(
@@ -133,29 +176,55 @@ class SlackService {
     text: string,
     blocks: any[],
   ) {
-    const response = await slackApp.client.chat.update({
-      channel: channelId,
-      ts,
-      text,
-      blocks,
-    });
+    try {
+      const response = await slackApp.client.chat.update({
+        channel: channelId,
+        ts,
+        text,
+        blocks,
+      });
 
-    const messageTs = response.ts;
+      const messageTs = response.ts;
 
-    if (!messageTs) {
-      throw new Error("Failed to update Slack message");
+      if (!messageTs) {
+        throw new Error("Failed to update Slack message");
+      }
+
+      logger.info("SlackService", "Slack message updated", {
+        channelId,
+        messageTs,
+      });
+
+      return {
+        channelId,
+        messageTs,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown SlackService error";
+
+      logger.error("SlackService", "Failed to update Slack message", {
+        channelId,
+        error: errorMessage,
+      });
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(errorMessage);
     }
-
-    return {
-      channelId,
-      messageTs,
-    };
   }
 
   async findUserByEmail(email: string): Promise<string | null> {
     try {
       const result = await slackApp.client.users.lookupByEmail({
         email,
+      });
+
+      logger.info("SlackService", "Slack user resolved by email", {
+        email,
+        slackUserId: result.user?.id,
       });
 
       return result.user?.id ?? null;
@@ -166,10 +235,25 @@ class SlackService {
         "data" in error &&
         (error as any).data?.error === "users_not_found"
       ) {
+        logger.warn("SlackService", "Slack user not found by email", {
+          email,
+        });
         return null;
       }
 
-      throw error;
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown SlackService error";
+
+      logger.error("SlackService", "Failed to resolve Slack user by email", {
+        email,
+        error: errorMessage,
+      });
+
+      if (error instanceof Error) {
+        throw error;
+      }
+
+      throw new Error(errorMessage);
     }
   }
 
