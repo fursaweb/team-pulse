@@ -12,8 +12,14 @@ const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const adminToken = process.env.ADMIN_TOKEN;
 
+const port = Number(process.env.PORT);
+
 if (!PORT) {
   throw new Error("PORT is not defined");
+}
+
+if (!Number.isInteger(port) || port <= 0) {
+  throw new Error("PORT must be a valid positive integer");
 }
 
 if (!supabaseUrl) {
@@ -53,7 +59,7 @@ if (!adminToken) {
 }
 
 export const envConfig = {
-  port: PORT,
+  port,
   supabaseUrl,
   supabaseServiceKey,
   supabasePublishableKey,

@@ -17,6 +17,6 @@ app.get("/health", async (req, res) => {
   return res.status(200).json({ status: "OK" });
 });
 
-app.listen(envConfig.port, () => {
-  console.log(`Server running on localhost:${envConfig.port}`);
+app.listen(envConfig.port, "0.0.0.0", () => {
+  console.log(`Server running on ${envConfig.port}`);
 });
