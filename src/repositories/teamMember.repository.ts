@@ -36,6 +36,17 @@ class TeamMemberRepository {
     return teamMember;
   }
 
+  async findByUserId(userId: string): Promise<TeamMember[]> {
+    const { data: teamMember, error } = await supabase
+      .from("team_members")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (error) throw new Error(error.message);
+
+    return teamMember;
+  }
+
   async findByTeamId(teamId: string): Promise<TeamMember[]> {
     const { data: teamMember, error } = await supabase
       .from("team_members")
@@ -74,6 +85,20 @@ class TeamMemberRepository {
     if (error) throw new Error(error.message);
 
     return teamMembers as unknown as TeamMemberWithUser[];
+  }
+
+  async deactivateOtherTeams(
+    userId: string,
+    currentTeamId: string,
+  ): Promise<void> {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ active: false })
+      .eq("user_id", userId)
+      .neq("team_id", currentTeamId)
+      .eq("active", true);
+
+    if (error) throw new Error(error.message);
   }
 
   async create(data: CreateTeamMemberData): Promise<TeamMember> {

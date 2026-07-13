@@ -96,6 +96,8 @@ class UsersSyncService {
     userId: string,
     row: UserSyncRow,
   ) {
+    await teamMemberRepository.deactivateOtherTeams(userId, teamId);
+
     const teamMember = await teamMemberRepository.findByTeamAndUser(
       teamId,
       userId,
