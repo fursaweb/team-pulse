@@ -267,13 +267,13 @@ class CheckinsService {
       };
 
       await checkinResponseRepository.create(checkinResponsePayload);
-      await googleSheetsService.updateDailyStatusResponse(checkinId, user.id);
-      await this.checkAndCompleteCheckin(checkin);
       await slackService.updateSafeConfirmedMessage(
         channelId,
         messageTs,
         user.language,
       );
+      await googleSheetsService.updateDailyStatusResponse(checkinId, user.id);
+      await this.checkAndCompleteCheckin(checkin);
     } else {
       await slackService.updateAlreadyRespondedMessage(
         channelId,
