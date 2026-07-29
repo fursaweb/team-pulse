@@ -38,10 +38,17 @@ type DailyReport = {
   totals: DailyReportTotals;
 };
 
+type DailyReportEmail = {
+  subject: string;
+  html: string;
+  text: string;
+};
+
 export {
   REPORT_STATUS,
   NonResponder,
   TeamReport,
   DailyReportTotals,
   DailyReport,
+  DailyReportEmail,
 };
