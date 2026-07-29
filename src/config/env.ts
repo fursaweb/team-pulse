@@ -11,6 +11,17 @@ const googleSheetsSpreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const adminToken = process.env.ADMIN_TOKEN;
+const checkinTime = process.env.CHECKIN_TIME;
+const reminderDelayHours = process.env.REMINDER_DELAY_HOURS;
+const dailyReportTime = process.env.DAILY_REPORT_TIME;
+const dailyReportTimezone = process.env.DAILY_REPORT_TIMEZONE;
+const dailyReportRecipient = process.env.DAILY_REPORT_RECIPIENT;
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT);
+const smtpSecure = process.env.SMTP_SECURE === "true";
+const smtpUser = process.env.SMTP_USER;
+const smtpPassword = process.env.SMTP_PASSWORD;
+const emailFrom = process.env.EMAIL_FROM;
 
 const port = Number(process.env.PORT);
 
@@ -58,6 +69,50 @@ if (!adminToken) {
   throw new Error("ADMIN_TOKEN is not defined");
 }
 
+if (!checkinTime) {
+  throw new Error("CHECKIN_TIME is not defined");
+}
+
+if (!reminderDelayHours) {
+  throw new Error("REMINDER_DELAY_HOURS is not defined");
+}
+
+if (!dailyReportTime) {
+  throw new Error("DAILY_REPORT_TIME is not defined");
+}
+
+if (!dailyReportTimezone) {
+  throw new Error("DAILY_REPORT_TIMEZONE is not defined");
+}
+
+if (!dailyReportRecipient) {
+  throw new Error("DAILY_REPORT_RECIPIENT is not defined");
+}
+
+if (!smtpHost) {
+  throw new Error("SMTP_HOST is not defined");
+}
+
+if (!smtpPort) {
+  throw new Error("SMTP_PORT is not defined");
+}
+
+// if (!smtpSecure) {
+//   throw new Error("SMTP_SECURE is not defined");
+// }
+
+if (!smtpUser) {
+  throw new Error("SMTP_USER is not defined");
+}
+
+if (!smtpPassword) {
+  throw new Error("SMTP_PASSWORD is not defined");
+}
+
+if (!emailFrom) {
+  throw new Error("EMAIL_FROM is not defined");
+}
+
 export const envConfig = {
   port,
   supabaseUrl,
@@ -69,4 +124,15 @@ export const envConfig = {
   slackBotToken,
   slackSigningSecret,
   adminToken,
+  checkinTime,
+  reminderDelayHours,
+  dailyReportTime,
+  dailyReportTimezone,
+  dailyReportRecipient,
+  smtpHost,
+  smtpPort,
+  smtpSecure,
+  smtpUser,
+  smtpPassword,
+  emailFrom,
 };
