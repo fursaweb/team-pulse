@@ -15,7 +15,7 @@ export const startScheduler = () => {
 
   logger.info("Scheduler", "UserSyncJob registered");
 
-  cron.schedule("*/15 * * * *", async () => {
+  cron.schedule("*/15 * * * 1-5", async () => {
     if (isUserSyncRunning) {
       logger.info("Scheduler", "UserSyncJob skipped");
       return;
@@ -31,7 +31,7 @@ export const startScheduler = () => {
 
   logger.info("Scheduler", "DailyCheckinJob registered");
 
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("*/5 * * * 1-5", async () => {
     if (isDailyCheckinRunning) {
       logger.info("Scheduler", "DailyCheckinJob skipped");
       return;
@@ -47,7 +47,7 @@ export const startScheduler = () => {
 
   logger.info("Scheduler", "ReminderJob registered");
 
-  cron.schedule("*/5   * * * *", async () => {
+  cron.schedule("*/5   * * * 1-5", async () => {
     if (isReminderRunning) {
       logger.info("Scheduler", "ReminderJob skipped");
       return;
