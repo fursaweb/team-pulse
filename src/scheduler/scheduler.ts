@@ -4,6 +4,7 @@ import { userSyncJob } from "../jobs/user-sync.job";
 import { dailyCheckinJob } from "../jobs/daily-checkin.job";
 import { reminderJob } from "../jobs/reminder.job";
 import { sendDailyEmailReportJob } from "../jobs/send-daily-email-report.job";
+import { envConfig } from "../config/env";
 
 export const startScheduler = () => {
   logger.info("Scheduler", "Started");
@@ -63,7 +64,7 @@ export const startScheduler = () => {
   logger.info("Scheduler", "SendDailyEmailReportJob registered");
 
   cron.schedule(
-    "00 13 * * *",
+    envConfig.dailyReportCron,
     async () => {
       await sendDailyEmailReportJob();
     },
