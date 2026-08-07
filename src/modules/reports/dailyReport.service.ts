@@ -75,7 +75,10 @@ class DailyReportService {
       }
     }
 
-    const respondedCount = activeMemberships.length;
+    const respondedCount = activeMemberships.filter((member) =>
+      responderIds.has(member.user_id),
+    ).length;
+
     const nonResponderCount = nonResponders.length;
     return {
       teamId: team.id,
@@ -85,7 +88,7 @@ class DailyReportService {
           ? REPORT_STATUS.ALL_RESPONDED
           : REPORT_STATUS.HAS_NON_RESPONDERS,
       checkinId: checkin.id,
-      totalMembers: respondedCount + nonResponderCount,
+      totalMembers,
       respondedCount,
       nonResponderCount,
       nonResponders,
