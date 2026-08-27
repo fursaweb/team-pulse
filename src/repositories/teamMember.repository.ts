@@ -101,6 +101,16 @@ class TeamMemberRepository {
     if (error) throw new Error(error.message);
   }
 
+  async deactivateAllByUserId(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ active: false })
+      .eq("user_id", userId)
+      .eq("active", true);
+
+    if (error) throw new Error(error.message);
+  }
+
   async create(data: CreateTeamMemberData): Promise<TeamMember> {
     const { data: teamMember, error } = await supabase
       .from("team_members")

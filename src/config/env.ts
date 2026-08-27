@@ -8,6 +8,7 @@ const supabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 const googleSheetsClientEmail = process.env.GOOGLE_SHEETS_CLIENT_EMAIL;
 const googleSheetsPrivateKey = process.env.GOOGLE_SHEETS_PRIVATE_KEY;
 const googleSheetsSpreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+const googleStaffSpreadsheetId = process.env.GOOGLE_STAFF_SPREADSHEET_ID;
 const slackBotToken = process.env.SLACK_BOT_TOKEN;
 const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
 const adminToken = process.env.ADMIN_TOKEN;
@@ -56,6 +57,10 @@ if (!googleSheetsPrivateKey) {
 
 if (!googleSheetsSpreadsheetId) {
   throw new Error("GOOGLE_SHEETS_SPREADSHEET_ID is not defined");
+}
+
+if (!googleStaffSpreadsheetId) {
+  throw new Error("GGOOGLE_STAFF_SPREADSHEET_ID is not defined");
 }
 
 if (!slackBotToken) {
@@ -126,6 +131,7 @@ export const envConfig = {
   googleSheetsClientEmail,
   googleSheetsPrivateKey,
   googleSheetsSpreadsheetId,
+  googleStaffSpreadsheetId,
   slackBotToken,
   slackSigningSecret,
   adminToken,

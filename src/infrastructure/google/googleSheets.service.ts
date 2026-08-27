@@ -76,6 +76,30 @@ const readTeamsSheet = async (): Promise<string[][]> => {
   }
 };
 
+const readStaffSheet = async (): Promise<string[][]> => {
+  const range = "SSS_Team!A3:I";
+
+  try {
+    const response = await googleSheetsClient.spreadsheets.values.get({
+      spreadsheetId: envConfig.googleStaffSpreadsheetId,
+      range,
+    });
+
+    const rows = response.data.values ?? [];
+
+    logger.debug(CONTEXT, "Staff sheet read", {
+      range,
+      rowsCount: rows.length,
+    });
+
+    return rows;
+  } catch (error) {
+    return logAndRethrow("Failed to read Staff sheet", error, {
+      range,
+    });
+  }
+};
+
 const appendSyncError = async (errorData: SyncErrorData): Promise<void> => {
   const range = "Sync Errors!A:H";
 
@@ -242,6 +266,7 @@ const updateDailyStatusReminder = async (
 export const googleSheetsService = {
   readUsersSheet,
   readTeamsSheet,
+  readStaffSheet,
   appendSyncError,
   appendDailyStatusRows,
   updateDailyStatusResponse,

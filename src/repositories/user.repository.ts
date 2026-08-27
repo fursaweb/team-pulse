@@ -1,5 +1,10 @@
 import { supabase } from "../infrastructure/database/supabase.client";
-import { User, CreateUserData, UpdateUserData } from "../types/user.types";
+import {
+  User,
+  CreateUserData,
+  UpdateUserData,
+  USER_STATUS,
+} from "../types/user.types";
 
 class UserRepository {
   async findById(id: string): Promise<User | null> {
@@ -39,6 +44,17 @@ class UserRepository {
     if (!user) return null;
 
     return user;
+  }
+
+  async findActive(): Promise<User[]> {
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("status", USER_STATUS.ACTIVE);
+
+    if (error) throw new Error(error.message);
+
+    return users;
   }
 
   async create(data: CreateUserData): Promise<User> {
