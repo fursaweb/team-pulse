@@ -7,6 +7,14 @@ import {
 } from "../types/user.types";
 
 class UserRepository {
+  async findAll(): Promise<User[]> {
+    const { data: users, error } = await supabase.from("users").select("*");
+
+    if (error) throw new Error(error.message);
+
+    return users;
+  }
+
   async findById(id: string): Promise<User | null> {
     const { data: user, error } = await supabase
       .from("users")

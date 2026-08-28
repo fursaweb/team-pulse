@@ -7,6 +7,16 @@ import {
 } from "../types/teamMember.type";
 
 class TeamMemberRepository {
+  async findAll(): Promise<TeamMember[]> {
+    const { data: teamMembers, error } = await supabase
+      .from("team_members")
+      .select("*");
+
+    if (error) throw new Error(error.message);
+
+    return teamMembers;
+  }
+
   async findById(id: string): Promise<TeamMember | null> {
     const { data: teamMember, error } = await supabase
       .from("team_members")
