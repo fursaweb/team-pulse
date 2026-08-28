@@ -167,6 +167,72 @@ class StaffSyncService {
     logger.info("StaffSyncService", "syncMemberships finished");
   }
 
+  private isSafeToDisableMissingUsers(
+    observedEmails: Set<string>,
+    usersByEmail: Map<string, User>,
+  ): boolean {
+    const MIN_STAFF_RATIO = 0.8;
+
+    const activeUsersCount = Array.from(usersByEmail.values()).filter(
+      (user) => user.status === USER_STATUS.ACTIVE,
+    ).length;
+
+    if (observedEmails.size === 0) {
+      logger.warn("StaffSyncService", "Staff safety check failed", {
+        observedEmailsCount: 0,
+        activeUsersCount,
+        reason: "No staff emails observed",
+        action: "Skipping disableMissingUsers",
+      });
+
+      return false;
+    }
+
+    if (activeUsersCount === 0) return true;
+
+    if (observedEmails.size / activeUsersCount < MIN_STAFF_RATIO) {
+      logger.warn("StaffSyncService", "Staff safety check failed", {
+        observedEmailsCount: observedEmails.size,
+        activeUsersCount,
+        staffRatio: observedEmails.size / activeUsersCount,
+        minStaffRatio: MIN_STAFF_RATIO,
+        action: "Skipping disableMissingUsers",
+      });
+
+      return false;
+    }
+    return true;
+  }
+
+  private async disableMissingUsers(
+    observedEmails: Set<string>,
+    usersByEmail: Map<string, User>,
+  ): Promise<number> {
+    logger.info("StaffSyncService", "disableMissingUsers started");
+
+    let deactivatedUsersCount = 0;
+
+    for (const user of usersByEmail.values()) {
+      if (user.status !== USER_STATUS.ACTIVE) {
+        continue;
+      }
+
+      if (observedEmails.has(user.email)) {
+        continue;
+      }
+
+      await userRepository.update(user.id, { status: USER_STATUS.DISABLED });
+      await teamMemberRepository.deactivateAllByUserId(user.id);
+      deactivatedUsersCount += 1;
+    }
+
+    logger.info("StaffSyncService", "disableMissingUsers finished", {
+      deactivatedUsersCount,
+    });
+
+    return deactivatedUsersCount;
+  }
+
   async syncStaff(): Promise<void> {
     const rows = await googleSheetsService.readStaffSheet();
 
@@ -182,6 +248,21 @@ class StaffSyncService {
     const teams = await this.syncTeams(validRows);
     const users = await this.syncUsers(validRows);
     await this.syncMemberships(validRows, users, teams);
+
+    if (!this.isSafeToDisableMissingUsers(observedEmails, users)) return;
+
+    const deactivatedUsersCount = await this.disableMissingUsers(
+      observedEmails,
+      users,
+    );
+
+    logger.info("StaffSyncService", "Staff sync completed", {
+      rowsCount: rows.length,
+      validRowsCount: validRows.length,
+      validationErrorsCount: errors.length,
+      observedEmailsCount: observedEmails.size,
+      deactivatedUsersCount,
+    });
   }
 }
 
