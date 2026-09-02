@@ -24,6 +24,7 @@ const smtpUser = process.env.SMTP_USER;
 const smtpPassword = process.env.SMTP_PASSWORD;
 const emailFrom = process.env.EMAIL_FROM;
 const dailyReportCron = process.env.DAILY_REPORT_CRON;
+const staffSyncCron = process.env.STAFF_SYNC_CRON;
 
 const port = Number(process.env.PORT);
 
@@ -123,6 +124,10 @@ if (!dailyReportCron) {
   throw new Error("DAILY_REPORT_CRON is not defined");
 }
 
+if (!staffSyncCron) {
+  throw new Error("STAFF_SYNC_CRON is not defined");
+}
+
 export const envConfig = {
   port,
   supabaseUrl,
@@ -147,4 +152,5 @@ export const envConfig = {
   smtpPassword,
   emailFrom,
   dailyReportCron,
+  staffSyncCron,
 };
