@@ -11,6 +11,8 @@ import { parseStaffRows } from "./staff.parser";
 import { StaffRow } from "./staff.schema";
 
 class StaffSyncService {
+  private isSyncing = false;
+
   private async syncTeams(validRows: StaffRow[]): Promise<Map<string, Team>> {
     logger.info("StaffSyncService", "syncTeams started");
 
@@ -76,8 +78,10 @@ class StaffSyncService {
     validRows: StaffRow[],
     users: Map<string, User>,
     teams: Map<string, Team>,
-  ): Promise<void> {
+  ): Promise<SyncErrorData[]> {
     logger.info("StaffSyncService", "syncMemberships started");
+
+    const errors: SyncErrorData[] = [];
 
     const teamMembers = await teamMemberRepository.findAll();
 
@@ -102,7 +106,16 @@ class StaffSyncService {
       const user = users.get(row.email);
 
       if (!user) {
-        console.log("User not found", row.email);
+        errors.push({
+          sheet_name: "SSS_Team",
+          row_number: row.rowNumber,
+          email: row.email,
+          team_name: row.teamName ?? "",
+          error_type: "SYNC_ERROR",
+          error_message: "User not found",
+          raw_data: JSON.stringify(row),
+        });
+
         continue;
       }
 
@@ -119,12 +132,20 @@ class StaffSyncService {
       const team = teams.get(row.teamName);
 
       if (!team) {
-        console.log("Team not found", row.teamName);
+        errors.push({
+          sheet_name: "SSS_Team",
+          row_number: row.rowNumber,
+          email: row.email,
+          team_name: row.teamName,
+          error_type: "SYNC_ERROR",
+          error_message: "Team not found",
+          raw_data: JSON.stringify(row),
+        });
+
         continue;
       }
 
       const membershipKey = `${user.id}:${team.id}`;
-
       const membership = membershipsByUserAndTeam.get(membershipKey);
 
       if (!membership) {
@@ -164,7 +185,11 @@ class StaffSyncService {
       }
     }
 
-    logger.info("StaffSyncService", "syncMemberships finished");
+    logger.info("StaffSyncService", "syncMemberships finished", {
+      errorsCount: errors.length,
+    });
+
+    return errors;
   }
 
   private isSafeToDisableMissingUsers(
@@ -234,35 +259,66 @@ class StaffSyncService {
   }
 
   async syncStaff(): Promise<void> {
-    const rows = await googleSheetsService.readStaffSheet();
+    if (this.isSyncing) {
+      logger.warn("StaffSyncService", "Staff sync already running, skipping");
+      return;
+    }
 
-    const { validRows, errors, observedEmails } = parseStaffRows(rows);
+    this.isSyncing = true;
 
-    logger.info("StaffSyncService", "StaffSync report", {
-      rowsCount: rows.length,
-      validRowsLength: validRows.length,
-      errorsLength: errors.length,
-      observedEmailsSize: observedEmails.size,
-    });
+    try {
+      const rows = await googleSheetsService.readStaffSheet();
 
-    const teams = await this.syncTeams(validRows);
-    const users = await this.syncUsers(validRows);
-    await this.syncMemberships(validRows, users, teams);
+      const {
+        validRows,
+        errors: parsedErrors,
+        observedEmails,
+      } = parseStaffRows(rows);
 
-    if (!this.isSafeToDisableMissingUsers(observedEmails, users)) return;
+      logger.info("StaffSyncService", "StaffSync report", {
+        rowsCount: rows.length,
+        validRowsLength: validRows.length,
+        errorsLength: parsedErrors.length,
+        observedEmailsSize: observedEmails.size,
+      });
 
-    const deactivatedUsersCount = await this.disableMissingUsers(
-      observedEmails,
-      users,
-    );
+      const teams = await this.syncTeams(validRows);
+      const users = await this.syncUsers(validRows);
+      const membershipErrors = await this.syncMemberships(
+        validRows,
+        users,
+        teams,
+      );
 
-    logger.info("StaffSyncService", "Staff sync completed", {
-      rowsCount: rows.length,
-      validRowsCount: validRows.length,
-      validationErrorsCount: errors.length,
-      observedEmailsCount: observedEmails.size,
-      deactivatedUsersCount,
-    });
+      const errors = parsedErrors.concat(membershipErrors);
+
+      const safeToDisableMissingUsers = this.isSafeToDisableMissingUsers(
+        observedEmails,
+        users,
+      );
+
+      let deactivatedUsersCount = 0;
+
+      if (safeToDisableMissingUsers) {
+        deactivatedUsersCount = await this.disableMissingUsers(
+          observedEmails,
+          users,
+        );
+      }
+
+      await googleSheetsService.appendSyncErrors(errors);
+
+      logger.info("StaffSyncService", "Staff sync completed", {
+        rowsCount: rows.length,
+        validRowsCount: validRows.length,
+        errorsCount: errors.length,
+        observedEmailsCount: observedEmails.size,
+        deactivatedUsersCount,
+        missingUsersDeactivationSkipped: !safeToDisableMissingUsers,
+      });
+    } finally {
+      this.isSyncing = false;
+    }
   }
 }
 

@@ -22,7 +22,7 @@ const parseStaffEmail = (rawEmail: string): string => {
 
 const parseStaffRow = (row: string[], rowIndex: number) => {
   const parsedRow = {
-    rowNumber: rowIndex + 2,
+    rowNumber: rowIndex + 3,
     name: row[2] ?? "",
     email: parseStaffEmail(row[6] ?? ""),
     teamName: row[8] ?? "",

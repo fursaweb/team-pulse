@@ -139,6 +139,48 @@ const appendSyncError = async (errorData: SyncErrorData): Promise<void> => {
   }
 };
 
+const appendSyncErrors = async (errors: SyncErrorData[]): Promise<void> => {
+  if (errors.length === 0) return;
+
+  const range = "Sync Errors!A:H";
+
+  const timeStamp = new Date().toISOString();
+
+  const values = errors.map((error) => {
+    return [
+      timeStamp,
+      error.sheet_name,
+      error.row_number,
+      error.email ?? "",
+      error.team_name ?? "",
+      error.error_type,
+      error.error_message,
+      error.raw_data,
+    ];
+  });
+
+  try {
+    await googleSheetsClient.spreadsheets.values.append({
+      spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values,
+      },
+    });
+
+    logger.info(CONTEXT, "Sync errors appended", {
+      range,
+      errorsCount: values.length,
+    });
+  } catch (error) {
+    logAndRethrow("Failed to append sync errors", error, {
+      range,
+      errorsCount: errors.length,
+    });
+  }
+};
+
 const appendDailyStatusRows = async (rows: DailyStatusRow[]): Promise<void> => {
   const range = "Daily Status!A:K";
 
@@ -268,6 +310,7 @@ export const googleSheetsService = {
   readTeamsSheet,
   readStaffSheet,
   appendSyncError,
+  appendSyncErrors,
   appendDailyStatusRows,
   updateDailyStatusResponse,
   updateDailyStatusReminder,
