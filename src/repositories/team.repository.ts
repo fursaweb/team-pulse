@@ -2,6 +2,14 @@ import { supabase } from "../infrastructure/database/supabase.client";
 import { Team, CreateTeamData, UpdateTeamData } from "../types/team.types";
 
 class TeamRepository {
+  async findAll(): Promise<Team[]> {
+    const { data: teams, error } = await supabase.from("teams").select("*");
+
+    if (error) throw new Error(error.message);
+
+    return teams;
+  }
+
   async findById(id: string): Promise<Team | null> {
     const { data: team, error } = await supabase
       .from("teams")

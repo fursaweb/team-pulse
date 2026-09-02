@@ -7,6 +7,16 @@ import {
 } from "../types/teamMember.type";
 
 class TeamMemberRepository {
+  async findAll(): Promise<TeamMember[]> {
+    const { data: teamMembers, error } = await supabase
+      .from("team_members")
+      .select("*");
+
+    if (error) throw new Error(error.message);
+
+    return teamMembers;
+  }
+
   async findById(id: string): Promise<TeamMember | null> {
     const { data: teamMember, error } = await supabase
       .from("team_members")
@@ -96,6 +106,16 @@ class TeamMemberRepository {
       .update({ active: false })
       .eq("user_id", userId)
       .neq("team_id", currentTeamId)
+      .eq("active", true);
+
+    if (error) throw new Error(error.message);
+  }
+
+  async deactivateAllByUserId(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("team_members")
+      .update({ active: false })
+      .eq("user_id", userId)
       .eq("active", true);
 
     if (error) throw new Error(error.message);

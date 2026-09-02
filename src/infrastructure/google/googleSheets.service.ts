@@ -76,6 +76,30 @@ const readTeamsSheet = async (): Promise<string[][]> => {
   }
 };
 
+const readStaffSheet = async (): Promise<string[][]> => {
+  const range = "SSS_Team!A3:I";
+
+  try {
+    const response = await googleSheetsClient.spreadsheets.values.get({
+      spreadsheetId: envConfig.googleStaffSpreadsheetId,
+      range,
+    });
+
+    const rows = response.data.values ?? [];
+
+    logger.debug(CONTEXT, "Staff sheet read", {
+      range,
+      rowsCount: rows.length,
+    });
+
+    return rows;
+  } catch (error) {
+    return logAndRethrow("Failed to read Staff sheet", error, {
+      range,
+    });
+  }
+};
+
 const appendSyncError = async (errorData: SyncErrorData): Promise<void> => {
   const range = "Sync Errors!A:H";
 
@@ -111,6 +135,48 @@ const appendSyncError = async (errorData: SyncErrorData): Promise<void> => {
       sourceSheet: errorData.sheet_name,
       rowNumber: errorData.row_number,
       errorType: errorData.error_type,
+    });
+  }
+};
+
+const appendSyncErrors = async (errors: SyncErrorData[]): Promise<void> => {
+  if (errors.length === 0) return;
+
+  const range = "Sync Errors!A:H";
+
+  const timeStamp = new Date().toISOString();
+
+  const values = errors.map((error) => {
+    return [
+      timeStamp,
+      error.sheet_name,
+      error.row_number,
+      error.email ?? "",
+      error.team_name ?? "",
+      error.error_type,
+      error.error_message,
+      error.raw_data,
+    ];
+  });
+
+  try {
+    await googleSheetsClient.spreadsheets.values.append({
+      spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values,
+      },
+    });
+
+    logger.info(CONTEXT, "Sync errors appended", {
+      range,
+      errorsCount: values.length,
+    });
+  } catch (error) {
+    logAndRethrow("Failed to append sync errors", error, {
+      range,
+      errorsCount: errors.length,
     });
   }
 };
@@ -242,7 +308,9 @@ const updateDailyStatusReminder = async (
 export const googleSheetsService = {
   readUsersSheet,
   readTeamsSheet,
+  readStaffSheet,
   appendSyncError,
+  appendSyncErrors,
   appendDailyStatusRows,
   updateDailyStatusResponse,
   updateDailyStatusReminder,

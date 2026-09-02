@@ -1,9 +1,11 @@
 import cron from "node-cron";
+
 import { logger } from "../infrastructure/logger/logger";
 import { userSyncJob } from "../jobs/user-sync.job";
 import { dailyCheckinJob } from "../jobs/daily-checkin.job";
 import { reminderJob } from "../jobs/reminder.job";
 import { sendDailyEmailReportJob } from "../jobs/send-daily-email-report.job";
+import { runStaffSyncJob } from "../jobs/staff-sync.job";
 import { envConfig } from "../config/env";
 
 export const startScheduler = () => {
@@ -13,21 +15,33 @@ export const startScheduler = () => {
   let isDailyCheckinRunning = false;
   let isReminderRunning = false;
 
-  logger.info("Scheduler", "UserSyncJob registered");
+  logger.info("Scheduler", "StaffSyncJob registered");
 
-  cron.schedule("*/15 * * * 1-5", async () => {
-    if (isUserSyncRunning) {
-      logger.info("Scheduler", "UserSyncJob skipped");
-      return;
-    }
+  cron.schedule(
+    envConfig.staffSyncCron,
+    async () => {
+      await runStaffSyncJob();
+    },
+    {
+      timezone: "Europe/Kyiv",
+    },
+  );
 
-    try {
-      isUserSyncRunning = true;
-      await userSyncJob();
-    } finally {
-      isUserSyncRunning = false;
-    }
-  });
+  // logger.info("Scheduler", "UserSyncJob registered");
+
+  // cron.schedule("*/15 * * * 1-5", async () => {
+  //   if (isUserSyncRunning) {
+  //     logger.info("Scheduler", "UserSyncJob skipped");
+  //     return;
+  //   }
+
+  //   try {
+  //     isUserSyncRunning = true;
+  //     await userSyncJob();
+  //   } finally {
+  //     isUserSyncRunning = false;
+  //   }
+  // });
 
   logger.info("Scheduler", "DailyCheckinJob registered");
 
@@ -47,7 +61,7 @@ export const startScheduler = () => {
 
   logger.info("Scheduler", "ReminderJob registered");
 
-  cron.schedule("*/5   * * * 1-5", async () => {
+  cron.schedule("*/5 * * * 1-5", async () => {
     if (isReminderRunning) {
       logger.info("Scheduler", "ReminderJob skipped");
       return;
