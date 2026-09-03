@@ -68,27 +68,24 @@ class UsersSyncService {
 
   private async syncUser(row: UserSyncRow, slackUserId: string | null) {
     const existingUser = await userRepository.findByEmail(row.email);
+
     const userStatus = row.active ? USER_STATUS.ACTIVE : USER_STATUS.DISABLED;
 
     if (!existingUser) {
-      const newUser = await userRepository.create({
+      return userRepository.create({
         name: row.name,
         email: row.email,
         language: row.language,
         status: userStatus,
         slack_user_id: slackUserId,
       });
-      return newUser;
     }
 
-    const updatedUser = await userRepository.update(existingUser.id, {
-      name: row.name,
-      email: row.email,
+    return userRepository.update(existingUser.id, {
       language: row.language,
       status: userStatus,
+      slack_user_id: slackUserId ?? existingUser.slack_user_id,
     });
-
-    return updatedUser;
   }
 
   private async syncMembership(
@@ -96,30 +93,24 @@ class UsersSyncService {
     userId: string,
     row: UserSyncRow,
   ) {
-    await teamMemberRepository.deactivateOtherTeams(userId, teamId);
-
     const teamMember = await teamMemberRepository.findByTeamAndUser(
       teamId,
       userId,
     );
 
     if (!teamMember) {
-      const newTeamMember = await teamMemberRepository.create({
-        team_id: teamId,
-        user_id: userId,
-        role: row.team_role,
-        active: row.active,
-      });
-
-      return newTeamMember;
+      throw new Error(
+        `Membership not found for user ${row.email} in team ${row.team_name}`,
+      );
     }
 
-    const updatedTeamMember = await teamMemberRepository.update(teamMember.id, {
-      role: row.team_role,
-      active: row.active,
-    });
+    if (teamMember.role === row.team_role) {
+      return teamMember;
+    }
 
-    return updatedTeamMember;
+    return teamMemberRepository.update(teamMember.id, {
+      role: row.team_role,
+    });
   }
 
   async syncUsers() {
@@ -129,14 +120,16 @@ class UsersSyncService {
     let syncedRows = 0;
     let failedRows = 0;
 
+    const errors: SyncErrorData[] = [];
+
     for (const [index, row] of rows.entries()) {
       const rowNumber = index + 2;
+
       const parsedRow = this.parseUserRow(row);
       const result = userSyncRowSchema.safeParse(parsedRow);
 
       if (!result.success) {
-        // write Sync Errors
-        const syncErrorData: SyncErrorData = {
+        errors.push({
           sheet_name: "Users",
           row_number: rowNumber,
           email: parsedRow.email ?? "",
@@ -146,9 +139,8 @@ class UsersSyncService {
             .map((issue) => issue.message)
             .join("; "),
           raw_data: JSON.stringify(row),
-        };
+        });
 
-        await googleSheetsService.appendSyncError(syncErrorData);
         failedRows++;
         continue;
       }
@@ -156,30 +148,28 @@ class UsersSyncService {
       const validRow = result.data;
 
       try {
-        // sync team
-        const team = await this.syncTeam(validRow.team_name);
+        const team = await teamRepository.findByName(validRow.team_name);
 
-        // get slack id
+        if (!team) {
+          throw new Error(`Team ${validRow.team_name} not found`);
+        }
+
         const slackUserId = await slackService.findUserByEmail(validRow.email);
 
         if (!slackUserId) {
-          const syncErrorData: SyncErrorData = {
+          errors.push({
             sheet_name: "Users",
             row_number: rowNumber,
-            email: parsedRow.email ?? "",
-            team_name: parsedRow.team_name ?? "",
+            email: validRow.email,
+            team_name: validRow.team_name,
             error_type: "SLACK_USER_NOT_FOUND",
-            error_message: `User with email ${parsedRow.email} not found`,
+            error_message: `User with email ${validRow.email} not found`,
             raw_data: JSON.stringify(row),
-          };
-
-          await googleSheetsService.appendSyncError(syncErrorData);
+          });
         }
 
-        // sync user
         const user = await this.syncUser(validRow, slackUserId);
 
-        // sync membership
         await this.syncMembership(team.id, user.id, validRow);
 
         syncedRows++;
@@ -187,23 +177,22 @@ class UsersSyncService {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown sync error";
 
-        const syncErrorData: SyncErrorData = {
+        errors.push({
           sheet_name: "Users",
           row_number: rowNumber,
-          email: parsedRow.email ?? "",
-          team_name: parsedRow.team_name ?? "",
+          email: validRow.email,
+          team_name: validRow.team_name,
           error_type: "SYNC_ERROR",
           error_message: errorMessage,
           raw_data: JSON.stringify(row),
-        };
+        });
 
-        await googleSheetsService.appendSyncError(syncErrorData);
         failedRows++;
-        continue;
       }
     }
 
-    // return result
+    await googleSheetsService.appendSyncErrors(errors);
+
     return {
       totalRows,
       syncedRows,
