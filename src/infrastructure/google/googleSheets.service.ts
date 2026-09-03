@@ -2,7 +2,13 @@ import { envConfig } from "../../config/env";
 import { CHECKIN_RESPONSE_STATUS } from "../../types/checkinResponse.types";
 import { logger } from "../logger/logger";
 import { googleSheetsClient } from "./googleSheets.client";
-import { DailyStatusRow, SyncErrorData } from "./googleShets.types";
+import {
+  DailyStatusRow,
+  SyncErrorData,
+  TeamSheetRow,
+  UserSheetRow,
+  UserTeamUpdate,
+} from "./googleShets.types";
 
 const CONTEXT = "GoogleSheetsService";
 
@@ -305,6 +311,85 @@ const updateDailyStatusReminder = async (
   }
 };
 
+const appendTeams = async (rows: TeamSheetRow[]): Promise<void> => {
+  const range = "Teams!A:E";
+
+  if (rows.length === 0) return;
+
+  try {
+    await googleSheetsClient.spreadsheets.values.append({
+      spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: rows,
+      },
+    });
+
+    logger.info(CONTEXT, "Teams rows appended", {
+      rowsCount: rows.length,
+    });
+  } catch (error) {
+    logAndRethrow("Failed to append Teams rows", error, {
+      range,
+      rowsCount: rows.length,
+    });
+  }
+};
+
+const appendUsers = async (rows: UserSheetRow[]): Promise<void> => {
+  const range = "Users!A:F";
+
+  if (rows.length === 0) return;
+
+  try {
+    await googleSheetsClient.spreadsheets.values.append({
+      spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: rows,
+      },
+    });
+
+    logger.info(CONTEXT, "Users rows appended", {
+      rowsCount: rows.length,
+    });
+  } catch (error) {
+    logAndRethrow("Failed to append Users rows", error, {
+      range,
+      rowsCount: rows.length,
+    });
+  }
+};
+
+const updateUserTeams = async (updates: UserTeamUpdate[]): Promise<void> => {
+  if (updates.length === 0) {
+    return;
+  }
+
+  try {
+    await googleSheetsClient.spreadsheets.values.batchUpdate({
+      spreadsheetId: envConfig.googleSheetsSpreadsheetId,
+      requestBody: {
+        valueInputOption: "USER_ENTERED",
+        data: updates.map((update) => ({
+          range: `Users!C${update.rowNumber}`,
+          values: [[update.teamName]],
+        })),
+      },
+    });
+
+    logger.info(CONTEXT, "Users teams updated", {
+      rowsCount: updates.length,
+    });
+  } catch (error) {
+    logAndRethrow("Failed to update Users teams", error, {
+      rowsCount: updates.length,
+    });
+  }
+};
+
 export const googleSheetsService = {
   readUsersSheet,
   readTeamsSheet,
@@ -314,4 +399,7 @@ export const googleSheetsService = {
   appendDailyStatusRows,
   updateDailyStatusResponse,
   updateDailyStatusReminder,
+  appendTeams,
+  appendUsers,
+  updateUserTeams,
 };

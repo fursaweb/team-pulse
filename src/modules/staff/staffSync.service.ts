@@ -1,12 +1,16 @@
 import { googleSheetsService } from "../../infrastructure/google/googleSheets.service";
-import { SyncErrorData } from "../../infrastructure/google/googleShets.types";
+import {
+  SyncErrorData,
+  TeamSheetRow,
+  UserSheetRow,
+} from "../../infrastructure/google/googleShets.types";
 import { logger } from "../../infrastructure/logger/logger";
 import { teamRepository } from "../../repositories/team.repository";
 import { teamMemberRepository } from "../../repositories/teamMember.repository";
 import { userRepository } from "../../repositories/user.repository";
 import { Team } from "../../types/team.types";
-import { TeamMember } from "../../types/teamMember.type";
-import { User, USER_STATUS } from "../../types/user.types";
+import { TEAM_MEMBER_ROLE, TeamMember } from "../../types/teamMember.type";
+import { LANG, User, USER_STATUS } from "../../types/user.types";
 import { parseStaffRows } from "./staff.parser";
 import { StaffRow } from "./staff.schema";
 
@@ -16,10 +20,20 @@ class StaffSyncService {
   private async syncTeams(validRows: StaffRow[]): Promise<Map<string, Team>> {
     logger.info("StaffSyncService", "syncTeams started");
 
+    const teamRows = await googleSheetsService.readTeamsSheet();
+    const teamsFromSheet = new Set<string>();
+
+    for (let row of teamRows) {
+      teamsFromSheet.add(row[0]);
+    }
+
     const allTeams = await teamRepository.findAll();
+
     const teamsByName: Map<string, Team> = new Map();
 
-    allTeams.forEach((team) => teamsByName.set(team.name, team));
+    allTeams.forEach((team) => {
+      teamsByName.set(team.name, team);
+    });
 
     const teamNames = validRows
       .map((row) => row.teamName)
@@ -27,15 +41,43 @@ class StaffSyncService {
 
     const uniqueTeamNames = Array.from(new Set(teamNames));
 
-    for (const teamName of uniqueTeamNames) {
-      const team = teamsByName.get(teamName);
+    const teamsToAppend: TeamSheetRow[] = [];
 
-      if (!team) {
-        const newTeam = await teamRepository.create({ name: teamName });
-        teamsByName.set(newTeam.name, newTeam);
+    for (const teamName of uniqueTeamNames) {
+      let team: Team;
+      const existingTeam = teamsByName.get(teamName);
+
+      if (existingTeam) {
+        team = existingTeam;
+      } else {
+        team = await teamRepository.create({
+          name: teamName,
+          timezone: "Europe/Kyiv",
+          check_in_time: "10:00",
+          reminder_delay_hours: 1,
+          active: false,
+        });
+        teamsByName.set(team.name, team);
+      }
+
+      if (!teamsFromSheet.has(team.name)) {
+        teamsToAppend.push([
+          team.name,
+          team.timezone,
+          team.check_in_time,
+          team.reminder_delay_hours,
+          team.active,
+        ]);
+
+        teamsFromSheet.add(team.name);
       }
     }
-    logger.info("StaffSyncService", "syncTeams finished");
+
+    await googleSheetsService.appendTeams(teamsToAppend);
+
+    logger.info("StaffSyncService", "syncTeams finished", {
+      appendedTeamsCount: teamsToAppend.length,
+    });
 
     return teamsByName;
   }
@@ -43,33 +85,92 @@ class StaffSyncService {
   private async syncUsers(validRows: StaffRow[]): Promise<Map<string, User>> {
     logger.info("StaffSyncService", "syncUsers started");
 
-    const allUsers = await userRepository.findAll();
-    const usersByEmail: Map<string, User> = new Map();
+    const userRows = await googleSheetsService.readUsersSheet();
 
-    allUsers.forEach((user) => usersByEmail.set(user.email, user));
+    const usersFromSheet = new Map<
+      string,
+      { rowNumber: number; teamName: string }
+    >();
+
+    for (const [index, row] of userRows.entries()) {
+      usersFromSheet.set(row[0], {
+        rowNumber: index + 2,
+        teamName: row[2] ?? "",
+      });
+    }
+
+    const allUsers = await userRepository.findAll();
+
+    const usersByEmail = new Map<string, User>();
+
+    allUsers.forEach((user) => {
+      usersByEmail.set(user.email, user);
+    });
+
+    const usersToAppend: UserSheetRow[] = [];
+
+    const usersToUpdate: {
+      rowNumber: number;
+      teamName: string;
+    }[] = [];
 
     for (const row of validRows) {
       const existingUser = usersByEmail.get(row.email);
 
-      if (!existingUser) {
-        const user = await userRepository.create({
+      let user: User;
+
+      if (existingUser) {
+        user = existingUser;
+      } else {
+        user = await userRepository.create({
           name: row.name,
           email: row.email,
           status: USER_STATUS.ACTIVE,
         });
 
         usersByEmail.set(user.email, user);
+      }
+
+      const sheetUser = usersFromSheet.get(user.email);
+      const staffTeamName = row.teamName ?? "";
+
+      if (!sheetUser) {
+        if (!row.teamName) {
+          continue;
+        }
+
+        usersToAppend.push([
+          user.email,
+          user.name,
+          row.teamName,
+          LANG.UK,
+          TEAM_MEMBER_ROLE.MEMBER,
+          true,
+        ]);
+
+        usersFromSheet.set(user.email, {
+          rowNumber: -1,
+          teamName: row.teamName,
+        });
+
         continue;
       }
 
-      if (existingUser.name !== row.name) {
-        const user = await userRepository.update(existingUser.id, {
-          name: row.name,
+      if (sheetUser.teamName !== staffTeamName) {
+        usersToUpdate.push({
+          rowNumber: sheetUser.rowNumber,
+          teamName: staffTeamName,
         });
-        usersByEmail.set(user.email, user);
       }
     }
-    logger.info("StaffSyncService", "syncUsers finished");
+
+    await googleSheetsService.appendUsers(usersToAppend);
+    await googleSheetsService.updateUserTeams(usersToUpdate);
+
+    logger.info("StaffSyncService", "syncUsers finished", {
+      appendedUsersCount: usersToAppend.length,
+      updatedUsersCount: usersToUpdate.length,
+    });
 
     return usersByEmail;
   }
@@ -89,12 +190,13 @@ class StaffSyncService {
     const activeMembershipsByUser = new Map<string, TeamMember[]>();
 
     teamMembers.forEach((teamMember) => {
-      membershipsByUserAndTeam.set(
-        `${teamMember.user_id}:${teamMember.team_id}`,
-        teamMember,
-      );
+      const key = `${teamMember.user_id}:${teamMember.team_id}`;
 
-      if (!teamMember.active) return;
+      membershipsByUserAndTeam.set(key, teamMember);
+
+      if (!teamMember.active) {
+        return;
+      }
 
       const memberships = activeMembershipsByUser.get(teamMember.user_id) ?? [];
 
@@ -155,22 +257,12 @@ class StaffSyncService {
         });
 
         membershipsByUserAndTeam.set(membershipKey, newMembership);
-
-        const hasOtherActiveMembership = activeMemberships.some(
-          (item) => item.team_id !== team.id,
-        );
-
-        if (hasOtherActiveMembership) {
-          await teamMemberRepository.deactivateOtherTeams(user.id, team.id);
-        }
-
-        continue;
-      }
-
-      if (!membership.active) {
+      } else if (!membership.active) {
         const updatedMembership = await teamMemberRepository.update(
           membership.id,
-          { active: true },
+          {
+            active: true,
+          },
         );
 
         membershipsByUserAndTeam.set(membershipKey, updatedMembership);

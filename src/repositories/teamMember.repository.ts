@@ -97,6 +97,42 @@ class TeamMemberRepository {
     return teamMembers as unknown as TeamMemberWithUser[];
   }
 
+  async findActiveByTeamIdAt(
+    teamId: string,
+    createdBefore: string,
+  ): Promise<TeamMemberWithUser[]> {
+    const { data: teamMembers, error } = await supabase
+      .from("team_members")
+      .select(
+        `
+        id,
+        team_id,
+        user_id,
+        role,
+        active,
+        created_at,
+        updated_at,
+        user:users (
+          id,
+          name,
+          email,
+          slack_user_id,
+          language,
+          status
+        )
+      `,
+      )
+      .match({
+        team_id: teamId,
+        active: true,
+      })
+      .lte("created_at", createdBefore);
+
+    if (error) throw new Error(error.message);
+
+    return teamMembers as unknown as TeamMemberWithUser[];
+  }
+
   async deactivateOtherTeams(
     userId: string,
     currentTeamId: string,

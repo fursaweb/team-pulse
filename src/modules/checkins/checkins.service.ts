@@ -148,8 +148,9 @@ class CheckinsService {
     let failedCount = 0;
 
     for (const checkin of checkins) {
-      const members = await teamMemberRepository.findActiveByTeamId(
+      const members = await teamMemberRepository.findActiveByTeamIdAt(
         checkin.team_id,
+        checkin.created_at,
       );
 
       for (const member of members) {
@@ -368,8 +369,9 @@ class CheckinsService {
   }
 
   async findNonResponders(checkin: Checkin): Promise<TeamMemberWithUser[]> {
-    const members = await teamMemberRepository.findActiveByTeamId(
+    const members = await teamMemberRepository.findActiveByTeamIdAt(
       checkin.team_id,
+      checkin.created_at,
     );
 
     const checkinResponses = await checkinResponseRepository.findByCheckinId(
